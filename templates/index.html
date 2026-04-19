@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Кот-оракул 🐱</title>
 
 <style>
@@ -110,6 +111,19 @@ button {
 
 <script>
 const chat = document.getElementById("chat");
+
+/* 🐱 ПРИВЕТСТВИЕ КОТА */
+window.onload = () => {
+    add("🐱 Кот: мяу… я проснулся.", "bot");
+
+    setTimeout(() => {
+        add("🐱 Кот: как тебя зовут, двуногое?", "bot");
+    }, 800);
+
+    setTimeout(() => {
+        add("🐱 Кот: скажи имя и задай вопрос.", "bot");
+    }, 1600);
+};
 
 function add(text, cls="bot"){
     const d = document.createElement("div");
