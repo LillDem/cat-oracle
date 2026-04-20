@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 
-<!-- 🔥 ЖЁСТКИЙ фикс масштаба -->
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>Кот-оракул 🐱</title>
 
@@ -18,7 +17,6 @@ html, body {
     padding: 0;
     width: 100%;
     height: 100%;
-    overflow: hidden; /* 🔥 убирает лишний скролл */
     background:#0f0f14;
     color:#e6e6e6;
     font-family:sans-serif;
@@ -27,8 +25,9 @@ html, body {
 /* 📱 контейнер */
 .app {
     width: 100%;
-    max-width: 100%;
-    height: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+    height: 100vh;
     display: flex;
     flex-direction: column;
 }
@@ -37,7 +36,6 @@ html, body {
 header {
     text-align: center;
     padding: 10px;
-    flex-shrink: 0;
 }
 
 #avatar {
@@ -74,21 +72,33 @@ header {
     background:#222;
 }
 
+/* 🟢 имя отдельно */
+.name-bar {
+    padding: 10px;
+}
+
+.name-bar input {
+    width: 100%;
+}
+
 /* ⌨️ низ */
 .input-bar {
     display:flex;
     gap:6px;
     padding:10px;
     background:#111;
-    flex-shrink: 0;
 }
 
 input {
-    flex:1;
+    min-width: 0; /* 🔥 ключевой фикс */
     padding:12px;
     border:none;
     border-radius:10px;
-    font-size:16px; /* 🔥 убирает зум на iOS */
+    font-size:16px;
+}
+
+#q {
+    flex: 1;
 }
 
 button {
@@ -113,8 +123,13 @@ button {
 
 <div id="chat"></div>
 
-<div class="input-bar">
+<!-- 🟢 ИМЯ ОТДЕЛЬНО -->
+<div class="name-bar">
     <input id="name" placeholder="Имя">
+</div>
+
+<!-- 🟢 ВОПРОС -->
+<div class="input-bar">
     <input id="q" placeholder="Спроси кота...">
     <button onclick="ask()">➤</button>
 </div>
