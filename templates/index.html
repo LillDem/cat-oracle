@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 
-<!-- 🔥 ВАЖНО ДЛЯ МОБИЛЫ -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- 🔥 ЖЁСТКИЙ фикс масштаба -->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
 <title>Кот-оракул 🐱</title>
 
@@ -17,17 +17,18 @@ html, body {
     margin: 0;
     padding: 0;
     width: 100%;
-    height: 100dvh;
+    height: 100%;
+    overflow: hidden; /* 🔥 убирает лишний скролл */
     background:#0f0f14;
     color:#e6e6e6;
     font-family:sans-serif;
 }
 
-/* 📱 контейнер как приложение */
+/* 📱 контейнер */
 .app {
-    max-width: 500px;
-    margin: 0 auto;
-    height: 100dvh;
+    width: 100%;
+    max-width: 100%;
+    height: 100%;
     display: flex;
     flex-direction: column;
 }
@@ -36,14 +37,14 @@ html, body {
 header {
     text-align: center;
     padding: 10px;
+    flex-shrink: 0;
 }
 
 #avatar {
-    width: 90px;
+    width: 80px;
     border-radius: 50%;
     margin: 5px auto;
     display: block;
-    transition: transform 0.2s;
 }
 
 /* 💬 чат */
@@ -54,7 +55,7 @@ header {
     background:#0a0a0f;
 }
 
-/* 💬 сообщения */
+/* сообщения */
 .msg {
     margin: 6px 0;
     padding: 8px;
@@ -71,7 +72,6 @@ header {
 
 .bot {
     background:#222;
-    color:#ddd;
 }
 
 /* ⌨️ низ */
@@ -80,6 +80,7 @@ header {
     gap:6px;
     padding:10px;
     background:#111;
+    flex-shrink: 0;
 }
 
 input {
@@ -87,7 +88,7 @@ input {
     padding:12px;
     border:none;
     border-radius:10px;
-    font-size:16px; /* 🔥 чтобы не было зума на iPhone */
+    font-size:16px; /* 🔥 убирает зум на iOS */
 }
 
 button {
@@ -123,17 +124,9 @@ button {
 <script>
 const chat = document.getElementById("chat");
 
-/* 🐱 приветствие */
 window.onload = () => {
     add("🐱 Кот: мяу… я проснулся.", "bot");
-
-    setTimeout(() => {
-        add("🐱 Кот: как тебя зовут, двуногое?", "bot");
-    }, 800);
-
-    setTimeout(() => {
-        add("🐱 Кот: задай вопрос… если осмелишься.", "bot");
-    }, 1600);
+    setTimeout(()=> add("🐱 Кот: как тебя зовут, двуногое?", "bot"), 700);
 };
 
 function add(text, cls="bot"){
@@ -153,7 +146,6 @@ async function ask(){
 
     add("Ты: " + q, "user");
 
-    // 😼 смена аватара
     const moodRes = await fetch("/mood", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
@@ -165,11 +157,8 @@ async function ask(){
     const img = document.getElementById("avatar");
     if (moodData.avatar){
         img.src = moodData.avatar;
-        img.style.transform = "scale(1.1)";
-        setTimeout(()=> img.style.transform = "scale(1)", 200);
     }
 
-    // 🧠 ответ
     const res = await fetch("/ask", {
         method: "POST",
         headers: {"Content-Type":"application/json"},
