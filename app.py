@@ -92,7 +92,6 @@ def get_quote(question, name):
     if not book:
         return "..."
 
-    # хаос
     if random.random() < 0.3:
         return random.choice(book)
 
@@ -105,12 +104,9 @@ def get_quote(question, name):
         scored.append((score, line))
 
     scored.sort(key=lambda x: x[0], reverse=True)
-
     top = scored[:5]
 
-    # защита от повторов
     recent = [m["a"] for m in memory.get(name, {}).get("messages", [])]
-
     filtered = [line for _, line in top if line not in str(recent)]
 
     if filtered:
@@ -145,7 +141,6 @@ def index():
     return render_template("index.html")
 
 
-# 😼 mood
 @app.route("/mood", methods=["POST"])
 def mood():
     data = request.json
@@ -189,14 +184,13 @@ def ask():
 
     quote = get_quote(q, name)
 
-    # иногда кот ломается
-    if random.random() < 0.05:
+    if random.random() < 0.03:
         return jsonify({"answer": "🐱 кот смотрит на тебя слишком долго…"})
 
-    # режим ответа
     mode = random.choice(["full", "short", "weird", "prophecy"])
 
-    use_ollama = random.random() < (0.2 + mood_val * 0.05)
+    # 👇 уменьшили шанс ИИ
+    use_ollama = random.random() < (0.15 + mood_val * 0.03)
 
     thinking = random.choice(THINKING_LINES)
     after = random.choice(AFTER_LINES)
@@ -209,13 +203,18 @@ def ask():
         prompt = f"""
 Ты — кот-оракул.
 
+Ответ должен быть:
+- короткий
+- цельный (не обрывай мысль)
+- странный, но понятный
+
 Текст:
 {quote}
 
 Вопрос:
 {q}
 
-Ответь коротко, странно, как кот.
+Ответ:
 """
 
         try:
@@ -226,20 +225,30 @@ def ask():
                     "prompt": prompt,
                     "stream": False,
                     "options": {
-                        "num_predict": 60,
+                        "num_predict": 80,
                         "temperature": 0.9
                     }
                 }
             )
-            ai_text = r.json().get("response", "")
+
+            ai_text = r.json().get("response", "").strip()
+
+            # 👇 если модель тупит — не палим это
+            if not ai_text or len(ai_text) < 10:
+                ai_text = quote
+
+            # 👇 если обрыв — аккуратно чинится
+            if ai_text.endswith(("…", "...", "-", "—")):
+                ai_text = ai_text + " кот не договорил"
+
         except:
-            ai_text = "кот потерял мысль"
+            ai_text = quote
 
     else:
         ai_text = quote
 
     # =========================
-    # 🎭 РАЗНЫЕ ФОРМАТЫ
+    # 🎭 ФОРМАТЫ (НЕ ТРОГАЛ)
     # =========================
     if mode == "full":
         answer = f"🐱 {thinking}\n\n📚 {ai_text}\n\n💬 {base}\n\n😼 {after}"
