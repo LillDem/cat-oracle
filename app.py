@@ -3,6 +3,7 @@ import json
 import os
 import random
 import requests
+import re
 
 app = Flask(__name__)
 
@@ -47,23 +48,93 @@ BASE_ANSWERS = [
     "кот наблюдает и молчит",
     "реальность согласилась",
     "ответ ближе, чем вопрос",
-    "всё уже сказано"
-]    
+    "всё уже сказано",
+    "кот не обязан объяснять",
+    "это было очевидно с самого начала",
+    "ты просто не хочешь это принять",
+    "кот видел хуже",
+    "это не тот вопрос",
+    "ответ уже случился",
+    "ты пришёл слишком поздно",
+]
 
 THINKING_LINES = [
-    "Погоди… Сейчас достану хрустальный шар. Я его загнал под диван. Ага… Вот…",
-    "Листаю книгу Лилу Деймон «Свалка Историй»… А ты думал, я из головы предсказания выдавать буду? Голова у меня, знаешь ли, для важных дел.",
-    "Терпение… Открываю третий глаз."
+    "Погоди… Сейчас достану хрустальный шар…",
+    "Листаю «Свалку Историй»…",
+    "Терпение… Открываю третий глаз.",
+    "Кот смотрит в пустоту…",
+    "Что-то шевельнулось в данных…",
+    "Ммм… интересный запрос…",
 ]
 
 AFTER_LINES = [
-    "Еще вопрос? Или с тебя достаточно?",
+    "Еще вопрос?",
     "Ну что, продолжим?",
-    "Спрашивай дальше, если не боишься ответа."
+    "Спрашивай дальше.",
+    "Или тебе уже хватило?",
+    "Кот не гарантирует ответы.",
 ]
 
-
 OLLAMA_URL = "http://localhost:11434/api/generate"
+
+
+# =========================
+# 🧠 TEXT UTILS
+# =========================
+def words(text):
+    return set(re.findall(r'\w+', text.lower()))
+
+
+# =========================
+# 🧠 УМНЫЙ ВЫБОР ЦИТАТЫ
+# =========================
+def get_quote(question, name):
+    if not book:
+        return "..."
+
+    # хаос
+    if random.random() < 0.3:
+        return random.choice(book)
+
+    q_words = words(question)
+
+    scored = []
+    for line in book:
+        line_words = words(line)
+        score = len(q_words & line_words) / (len(line_words) + 1)
+        scored.append((score, line))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+
+    top = scored[:5]
+
+    # защита от повторов
+    recent = [m["a"] for m in memory.get(name, {}).get("messages", [])]
+
+    filtered = [line for _, line in top if line not in str(recent)]
+
+    if filtered:
+        return random.choice(filtered)
+
+    return random.choice(top)[1]
+
+
+# =========================
+# 🐱 ПОВЕДЕНИЕ КОТА
+# =========================
+def adapt_base(base, q):
+    q = q.lower()
+
+    if "почему" in q:
+        return "кот не объясняет"
+
+    if "люблю" in q:
+        return "это опасный вопрос"
+
+    if "смерть" in q:
+        return "кот смотрит дольше обычного"
+
+    return base
 
 
 # =========================
@@ -100,37 +171,6 @@ def mood():
 
 
 # =========================
-# 🧠 УМНЫЙ ВЫБОР ЦИТАТЫ
-# =========================
-def get_quote(question):
-    if not book:
-        return "..."
-
-    q_words = set(question.lower().split())
-
-    scored = []
-
-    for line in book:
-        line_words = set(line.lower().split())
-
-        # пересечение слов
-        score = len(q_words & line_words)
-
-        scored.append((score, line))
-
-    scored.sort(key=lambda x: x[0], reverse=True)
-
-    top = scored[:10]
-
-    # если есть хоть слабое совпадение — берём из топа
-    if top and top[0][0] > 0:
-        return random.choice(top)[1]
-
-    # иначе просто случайная строка
-    return random.choice(book)
-
-
-# =========================
 # 🐱 MAIN BRAIN
 # =========================
 @app.route("/ask", methods=["POST"])
@@ -147,35 +187,27 @@ def ask():
 
     mood_val = memory[name]["mood"]
 
-    # =========================
-    # 📚 ЦИТАТА С УЧЁТОМ ВОПРОСА
-    # =========================
-    quote = get_quote(q)
+    quote = get_quote(q, name)
+
+    # иногда кот ломается
+    if random.random() < 0.05:
+        return jsonify({"answer": "🐱 кот смотрит на тебя слишком долго…"})
+
+    # режим ответа
+    mode = random.choice(["full", "short", "weird", "prophecy"])
+
+    use_ollama = random.random() < (0.2 + mood_val * 0.05)
+
+    thinking = random.choice(THINKING_LINES)
+    after = random.choice(AFTER_LINES)
+    base = adapt_base(random.choice(BASE_ANSWERS), q)
 
     # =========================
-    # 🎲 редкий ИИ
+    # 🤖 OLLAMA
     # =========================
-    use_ollama = random.random() < 0.1
-
-    # =========================
-    # ⚡ БЫСТРЫЙ РЕЖИМ
-    # =========================
-    if not use_ollama:
-
-        thinking = random.choice(THINKING_LINES)
-        after = random.choice(AFTER_LINES)
-        base = random.choice(BASE_ANSWERS)
-
-        answer = f"🐱 {thinking}\n\n📚 {quote}\n\n💬 {base}\n\n😼 {after}"
-
-    # =========================
-    # 🧠 OLLAMA (редко)
-    # =========================
-    else:
+    if use_ollama:
         prompt = f"""
 Ты — кот-оракул.
-
-Используй текст как смысл ответа.
 
 Текст:
 {quote}
@@ -183,7 +215,7 @@ def ask():
 Вопрос:
 {q}
 
-Отвечай коротко как кот.
+Ответь коротко, странно, как кот.
 """
 
         try:
@@ -195,21 +227,31 @@ def ask():
                     "stream": False,
                     "options": {
                         "num_predict": 60,
-                        "temperature": 0.7
+                        "temperature": 0.9
                     }
                 }
             )
-
-            answer = r.json().get("response", "кот завис")
-
+            ai_text = r.json().get("response", "")
         except:
-            answer = "кот ушёл в пустоту"
+            ai_text = "кот потерял мысль"
 
-        thinking = random.choice(THINKING_LINES)
-        after = random.choice(AFTER_LINES)
-        base = random.choice(BASE_ANSWERS)
+    else:
+        ai_text = quote
 
-        answer = f"🐱 {thinking}\n\n🧠 {answer}\n\n💬 {base}\n\n😼 {after}"
+    # =========================
+    # 🎭 РАЗНЫЕ ФОРМАТЫ
+    # =========================
+    if mode == "full":
+        answer = f"🐱 {thinking}\n\n📚 {ai_text}\n\n💬 {base}\n\n😼 {after}"
+
+    elif mode == "short":
+        answer = f"🐱 {ai_text}"
+
+    elif mode == "weird":
+        answer = f"🐱 ...\n{base}\n{ai_text}\nкот замолчал"
+
+    elif mode == "prophecy":
+        answer = f"🔮 {ai_text}\n\nкот отвернулся"
 
     # =========================
     # 💾 MEMORY
